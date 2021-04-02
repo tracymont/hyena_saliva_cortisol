@@ -121,7 +121,7 @@ behavior.dat %>% group_by(behav.cat) %>% summarize(count = length(unique(saliva_
 boxplot.behav <- ggplot(behavior.dat, aes(x = behav.cat, y = residuals)) +
   geom_boxplot() + 
   xlab('Behavior 15-45 min prior to sample') +
-  ylab("Cortisol residuals") +
+  ylab("Cortisol model residuals") +
   theme_classic() +
   theme(legend.title = element_blank(), legend.text = element_text(size = 12),
         axis.title = element_text(size = 20), axis.text = element_text(size = 16)) + 
@@ -135,7 +135,7 @@ dev.off()
 #Table
 tab_model(mod.cort, show.se = T, show.ci = F, show.intercept = F, show.reflvl = TRUE,
           pred.labels = c("Aggressor", "Recipient", "Play"),
-          dv.labels = c("Cortisol residuals"),
+          dv.labels = c("Cortisol model residuals"),
           string.se = "SE")#, file = "11.table.cort.behav.doc")
 
 #Model plot
