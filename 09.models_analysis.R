@@ -1,5 +1,5 @@
 ################################################################################
-######### 07: Modeling saliva cortisol ########
+######### 09: Modeling saliva cortisol ########
 ################################################################################
 
 ######################################################################
@@ -60,24 +60,33 @@ table(saliva.cortisol$sex)
 # 112 149 
 
 #Maternal social rank
-hist(saliva.cortisol$rank)
-round(mean(saliva.cortisol$rank), dig = 2)     #0.06
-round(median(saliva.cortisol$rank), dig = 2)     #0.11
-round(min(saliva.cortisol$rank), dig = 2)     #-1
-round(max(saliva.cortisol$rank), dig = 2)     #1
+hist(saliva.cortisol$mat_rank)
+round(mean(saliva.cortisol$mat_rank), dig = 2)     #0.06
+round(median(saliva.cortisol$mat_rank), dig = 2)     #0.11
+round(min(saliva.cortisol$mat_rank), dig = 2)     #-1
+round(max(saliva.cortisol$mat_rank), dig = 2)     #1
 
 #Litter status
-table(saliva.cortisol$litter)
+table(saliva.cortisol$litter_status)
 # singleton   dominant    subordinate 
 # 85          92          85 
 
+#Weaning status
+table(saliva.cortisol$weaning_status)
+# nursing  weaning_status 
+# 205      49 
+
 ##Number of samples per individual
 cort.by.id <- saliva.cortisol %>% group_by(hyena_id) %>% dplyr::summarize(num_samples = length(saliva_sample_id))
+cort.by.id <- left_join(cort.by.id, unique(saliva.cortisol[,c("hyena_id", "sex")]))
 nrow(cort.by.id)     # 69 individuals
 min(cort.by.id$num_samples)     # 1 sample
 max(cort.by.id$num_samples)     # 20 samples
 round(mean(cort.by.id$num_samples), 2)     # 3.8 samples
 median(cort.by.id$num_samples)     # 2 samples
+table(cort.by.id$sex)
+# f  m 
+# 33 35 
 
 
 ########## 2.2 Look at data ##########
@@ -107,13 +116,14 @@ hist(saliva.cortisol$temp_max)
 hist(saliva.cortisol$precip)
 hist(saliva.cortisol$prey_density)
 hist(saliva.cortisol$age)
-hist(saliva.cortisol$rank)
+hist(saliva.cortisol$mat_rank)
 hist(saliva.cortisol$number_littermates)
-hist(saliva.cortisol$litrank)
+hist(saliva.cortisol$litter_rank)
 table(saliva.cortisol$clan)
 table(saliva.cortisol$ampm)
 table(saliva.cortisol$sex)
-table(saliva.cortisol$litter)
+table(saliva.cortisol$litter_status)
+table(saliva.cortisol$weaning_status)
 
 #Look at potential outliers
 dotchart(saliva.cortisol$log_cortisol_ug_dl)
@@ -127,9 +137,9 @@ dotchart(saliva.cortisol$temp_max)
 dotchart(saliva.cortisol$precip)
 dotchart(saliva.cortisol$prey_density)
 dotchart(saliva.cortisol$age)
-dotchart(saliva.cortisol$rank)
+dotchart(saliva.cortisol$mat_rank)
 dotchart(saliva.cortisol$number_littermates)
-dotchart(saliva.cortisol$litrank)
+dotchart(saliva.cortisol$litter_rank)
 
 
 ######################################################################
@@ -150,16 +160,15 @@ saliva.cortisol$temp_max_z <- as.numeric(scale(saliva.cortisol$temp_max, center 
 saliva.cortisol$precip_z <- as.numeric(scale(saliva.cortisol$precip, center = TRUE, scale = TRUE))
 saliva.cortisol$prey_density_z <- as.numeric(scale(saliva.cortisol$prey_density, center = TRUE, scale = TRUE))
 saliva.cortisol$age_z <- as.numeric(scale(saliva.cortisol$age, center = TRUE, scale = TRUE))
-saliva.cortisol$rank_z <- as.numeric(scale(saliva.cortisol$rank, center = TRUE, scale = TRUE))
+saliva.cortisol$mat_rank_z <- as.numeric(scale(saliva.cortisol$mat_rank, center = TRUE, scale = TRUE))
 saliva.cortisol$number_littermates_z <- as.numeric(scale(saliva.cortisol$number_littermates, 
                                                          center = TRUE, scale = TRUE))
-saliva.cortisol$litrank_z <- as.numeric(scale(saliva.cortisol$litrank, center = TRUE, scale = TRUE))
+saliva.cortisol$litter_rank_z <- as.numeric(scale(saliva.cortisol$litter_rank, center = TRUE, scale = TRUE))
 
 #Look at potential collinearity of independent variables
-head(saliva.cortisol[,c(8,9,10,12,15:25,27)])
-ggcorr(saliva.cortisol[,c(8,9,10,12,15:25,27)], label = T)
-# number_littermates and litrank are highly correlated -> use litter
-
+head(saliva.cortisol[,c(8,9,10,12,15:25,27,29)])
+ggcorr(saliva.cortisol[,c(8,9,10,12,15:25,27,29)], label = T)
+# number_littermates and litter_rank are highly correlated -> use litter_status
 
 ########## 3.2 Bivariate models ##########
 
@@ -181,9 +190,9 @@ round(mean(saliva.cortisol$cortisol_assay_diff, na.rm = T), dig = 1)    #8.9 mon
 round(min(saliva.cortisol$cortisol_assay_diff, na.rm = T), dig = 1)     #2.3
 round(max(saliva.cortisol$cortisol_assay_diff, na.rm = T), dig = 1)     #31.6
 
-summary(lm(data = saliva.cortisol, log_cortisol_ug_dl ~ freeze_thaw_z))
-round(mean(saliva.cortisol$freeze_thaw, na.rm = T), dig = 1)    #2.2
-round(min(saliva.cortisol$freeze_thaw, na.rm = T), dig = 1)     #2
+summary(lm(data = saliva.cortisol, log_cortisol_ug_dl ~ freeze_thaw_z))     #significant
+round(mean(saliva.cortisol$freeze_thaw, na.rm = T), dig = 1)    #2.1
+round(min(saliva.cortisol$freeze_thaw, na.rm = T), dig = 1)     #1
 round(max(saliva.cortisol$freeze_thaw, na.rm = T), dig = 1)     #4
 
 summary(lm(data = saliva.cortisol, log_cortisol_ug_dl ~ temp_min_z))
@@ -193,8 +202,9 @@ summary(lm(data = saliva.cortisol, log_cortisol_ug_dl ~ prey_density_z))
 
 summary(lm(data = saliva.cortisol, log_cortisol_ug_dl ~ age_z))
 summary(lm(data = saliva.cortisol, log_cortisol_ug_dl ~ sex))
-summary(lm(data = saliva.cortisol, log_cortisol_ug_dl ~ rank_z))
-summary(lm(data = saliva.cortisol, log_cortisol_ug_dl ~ litter))     #significant
+summary(lm(data = saliva.cortisol, log_cortisol_ug_dl ~ mat_rank_z))
+summary(lm(data = saliva.cortisol, log_cortisol_ug_dl ~ litter_status))     #significant
+summary(lm(data = saliva.cortisol, log_cortisol_ug_dl ~ weaning_status))
 
 
 ########## 3.3 Additive model ##########
@@ -203,25 +213,29 @@ summary(lm(data = saliva.cortisol, log_cortisol_ug_dl ~ litter))     #significan
 mod.cort <- lmer(data = saliva.cortisol, log_cortisol_ug_dl ~ ampm + time_lag_z + 
                    chew_time_z + ln2_diff_z + cortisol_assay_diff_z + freeze_thaw_z + 
                    temp_min_z + temp_max_z + precip_z + prey_density_z + 
-                   age_z + sex + rank_z + litter + (1|hyena_id))
+                   age_z + sex + mat_rank_z + litter_status + weaning_status + (1|hyena_id))
 check_collinearity(mod.cort)     #all below 3
 check_model(mod.cort)
 
 #Use AIC criterion to determine best model
 options(na.action = "na.fail")
-head(saliva.cortisol[,c(8,9,10,12,15:22,25,27)])
-tmp <- filter(saliva.cortisol, complete.cases(saliva.cortisol[,c(8,9,10,12,15:22,25,27)]))     #217
+head(saliva.cortisol[,c(8,9,10,12,15:22,25,27,28,29)])
+tmp <- filter(saliva.cortisol, complete.cases(saliva.cortisol[,c(8,9,10,12,15:22,25,27,28,29)]))     #209
 mod.cort <- lmer(data = tmp, log_cortisol_ug_dl ~ ampm + time_lag_z + 
                    chew_time_z + ln2_diff_z + cortisol_assay_diff_z + freeze_thaw_z + 
                    temp_min_z + temp_max_z + precip_z + prey_density_z + 
-                   age_z + sex + rank_z + litter + (1|hyena_id))
+                   age_z + sex + mat_rank_z + litter_status + weaning_status + (1|hyena_id))
 results.dredge <- dredge(mod.cort)
 get.models(subset(results.dredge, delta == 0), subset = T)
-# log_cortisol_ug_dl ~ ampm + cortisol_assay_diff_z + litter + temp_max_z + time_lag_z + (1 | hyena_id)
+# log_cortisol_ug_dl ~ ampm + cortisol_assay_diff_z + litter_status + temp_max_z + time_lag_z + (1 | hyena_id)
 importance(subset(results.dredge, delta <= 5 & !nested(.)))    
-#                      ampm cortisol_assay_diff_z temp_max_z time_lag_z litter
-# Sum of weights:      1.00 1.00                  1.00       1.00       0.63  
-# N containing models:    2    2                     2          2          1  
+#                      ampm cortisol_assay_diff_z temp_max_z time_lag_z litter_status sex 
+# Sum of weights:      1.00 1.00                  1.00       0.95       0.49          0.26
+# N containing models:    4    4                     4          3          2             1
+importance(subset(results.dredge, delta <= 2 & !nested(.)))    
+#                      ampm cortisol_assay_diff_z temp_max_z time_lag_z litter_status sex 
+# Sum of weights:      1.00 1.00                  1.00       1.00       0.46          0.27
+# N containing models:    3    3                     3          3          1             1
 options(na.action = "na.omit")
 
 
@@ -231,26 +245,26 @@ options(na.action = "na.omit")
 mod.cort <- lmer(data = saliva.cortisol, log_cortisol_ug_dl ~ ampm + time_lag_z + 
                    chew_time_z + ln2_diff_z + cortisol_assay_diff_z + freeze_thaw_z + 
                    temp_min_z + temp_max_z + precip_z + prey_density_z + 
-                   age_z + sex + rank_z + litter + 
+                   age_z + sex + mat_rank_z + litter_status + weaning_status + 
                    ampm * time_lag_z + #if slopes different in AM and PM
                    temp_min_z * temp_max_z + #if temperature change matters more than max temp
-                   rank_z * prey_density_z + #food availability based on maternal rank
-                   litter * prey_density_z + #food availability based on intra-litter rank
+                   mat_rank_z * prey_density_z + #food availability based on maternal mat_rank
+                   litter_status * prey_density_z + #food availability based on intra-litter mat_rank
                    age_z * sex + #different developmental trajectories based on sex
-                   age_z * rank_z + #different developmental trajectories based on maternal rank
-                   age_z * litter + #different developmental trajectories based on litter status
-                   sex * litter + #following Benhaiem et al. 2013
+                   age_z * mat_rank_z + #different developmental trajectories based on maternal mat_rank
+                   age_z * litter_status + #different developmental trajectories based on litter status
+                   sex * litter_status + #following Benhaiem et al. 2013
                    (1|hyena_id))
 check_collinearity(mod.cort)
 mod.cort <- lmer(data = saliva.cortisol, log_cortisol_ug_dl ~ ampm + time_lag_z + 
                    chew_time_z + ln2_diff_z + cortisol_assay_diff_z + freeze_thaw_z + 
                    temp_min_z + temp_max_z + precip_z + prey_density_z + 
-                   age_z + sex + rank_z + litter + 
+                   age_z + sex + mat_rank_z + litter_status + weaning_status + 
                    ampm * time_lag_z + #if slopes different in AM and PM
                    temp_min_z * temp_max_z + #if temperature change matters more than max temp
-                   rank_z * prey_density_z + #food availability based on maternal rank
+                   mat_rank_z * prey_density_z + #food availability based on maternal mat_rank
                    age_z * sex + #different developmental trajectories based on sex
-                   age_z * rank_z + #different developmental trajectories based on maternal rank
+                   age_z * mat_rank_z + #different developmental trajectories based on maternal mat_rank
                    (1|hyena_id))
 check_collinearity(mod.cort)     #all below/at 3
 check_model(mod.cort)
@@ -260,20 +274,24 @@ options(na.action = "na.fail")
 mod.cort <- lmer(data = tmp, log_cortisol_ug_dl ~ ampm + time_lag_z + 
                    chew_time_z + ln2_diff_z + cortisol_assay_diff_z + freeze_thaw_z + 
                    temp_min_z + temp_max_z + precip_z + prey_density_z + 
-                   age_z + sex + rank_z + litter + 
+                   age_z + sex + mat_rank_z + litter_status + weaning_status + 
                    ampm * time_lag_z + #if slopes different in AM and PM
                    temp_min_z * temp_max_z + #if temperature change matters more than max temp
-                   rank_z * prey_density_z + #food availability based on maternal rank
+                   mat_rank_z * prey_density_z + #food availability based on maternal mat_rank
                    age_z * sex + #different developmental trajectories based on sex
-                   age_z * rank_z + #different developmental trajectories based on maternal rank
+                   age_z * mat_rank_z + #different developmental trajectories based on maternal mat_rank
                    (1|hyena_id))
 results.dredge <- dredge(mod.cort)
 get.models(subset(results.dredge, delta == 0), subset = T)
-# log_cortisol_ug_dl ~ ampm + cortisol_assay_diff_z + litter + temp_max_z + time_lag_z + (1 | hyena_id)
+# log_cortisol_ug_dl ~ ampm + cortisol_assay_diff_z + litter_status + temp_max_z + time_lag_z + (1 | hyena_id)
 importance(subset(results.dredge, delta <= 5 & !nested(.)))    
-#                      ampm cortisol_assay_diff_z temp_max_z time_lag_z litter
-# Sum of weights:      1.00 1.00                  1.00       1.00       0.63  
-# N containing models:    2    2                     2          2          1  
+#                      ampm cortisol_assay_diff_z temp_max_z time_lag_z litter_status sex 
+# Sum of weights:      1.00 1.00                  1.00       0.95       0.49          0.26
+# N containing models:    4    4                     4          3          2             1
+importance(subset(results.dredge, delta <= 2 & !nested(.)))    
+#                      ampm cortisol_assay_diff_z temp_max_z time_lag_z litter_status sex 
+# Sum of weights:      1.00 1.00                  1.00       1.00       0.46          0.27
+# N containing models:    3    3                     3          3          1             1
 options(na.action = "na.omit")
 
 
@@ -301,19 +319,18 @@ length(unique(cort$hyena_id))
 
 ########## 4.3 Final model ##########
 
-cortisol <- lme4::lmer(data = saliva.cort.final, log_cortisol_ug_dl ~ ampm + 
-                         cortisol_assay_diff_z + litter + temp_max_z + time_lag_z + (1 | hyena_id))
+cortisol <- lmer(data = saliva.cort.final, log_cortisol_ug_dl ~ ampm + 
+                         cortisol_assay_diff_z + litter_status + temp_max_z + time_lag_z + (1 | hyena_id))
 summary(cortisol)
-#                        Estimate Std. Error        df t value Pr(>|t|)    
-# (Intercept)            -1.17765    0.18372  65.46062  -6.410 1.84e-08 ***
-# ampmPM                  0.49461    0.12523 235.62786   3.950 0.000103 ***
-# cortisol_assay_diff_z  -0.43975    0.06556 183.04556  -6.708 2.38e-10 ***
-# litterdominant         -0.66594    0.22087  53.99281  -3.015 0.003909 ** 
-# littersubordinate      -0.19853    0.24337  49.52068  -0.816 0.418552    
-# temp_max_z              0.26382    0.06132 248.95383   4.303 2.43e-05 ***
-# time_lag_z             -0.20051    0.06124 236.15995  -3.274 0.001219 ** 
-
-summary(glht(cortisol, linfct = mcp(litter = "Tukey")))
+#                           Estimate Std. Error        df t value Pr(>|t|)    
+# ampmPM                     0.49461    0.12523 235.62786   3.950 0.000103 ***
+# cortisol_assay_diff_z     -0.43975    0.06556 183.04556  -6.708 2.38e-10 ***
+# litter_statusdominant     -0.66594    0.22087  53.99281  -3.015 0.003909 ** 
+# litter_statussubordinate  -0.19853    0.24337  49.52068  -0.816 0.418552    
+# temp_max_z                 0.26382    0.06132 248.95383   4.303 2.43e-05 ***
+# time_lag_z                -0.20051    0.06124 236.15995  -3.274 0.001219 ** 
+  
+summary(glht(cortisol, linfct = mcp(litter_status = "Tukey")))
 #                              Estimate Std. Error z value Pr(>|z|)   
 # dominant - singleton == 0     -0.6659     0.2209  -3.015  0.00719 **
 # subordinate - singleton == 0  -0.1985     0.2434  -0.816  0.69284   
@@ -328,18 +345,18 @@ model_performance(cortisol)
 # AIC     |     BIC | R2 (cond.) | R2 (marg.) |   ICC |  RMSE | Sigma
 # 691.113 | 723.020 |      0.586 |      0.352 | 0.361 | 0.704 | 0.773
 
-# ## Remove outliers - changes significance of litter but not direction
+# ## Remove outliers - changes significance of litter_status but not direction
 # check_outliers(cortisol)
 # tmp <- saliva.cort.final[-c(66),]    #remove outliers
 # cortisol <- lmer(data = tmp, log_cortisol_ug_dl ~ ampm + cortisol_assay_diff_z +
-#                    litter + temp_max_z + time_lag_z + (1 | hyena_id))
+#                    litter_status + temp_max_z + time_lag_z + (1 | hyena_id))
 # check_outliers(cortisol)
 # summary(cortisol)
-# summary(glht(cortisol, linfct = mcp(litter = "Tukey")))
+# summary(glht(cortisol, linfct = mcp(litter_status = "Tukey")))
 # #                              Estimate Std. Error z value Pr(>|z|)
-# # dominant - singleton == 0    -0.55933    0.20504  -2.728   0.0175 *
-# # subordinate - singleton == 0 -0.09174    0.22484  -0.408   0.9122
-# # subordinate - dominant == 0   0.46759    0.21140   2.212   0.0690 .
+# # dominant - singleton == 0    -0.55933    0.20504  -2.728   0.0173 *
+# # subordinate - singleton == 0 -0.09174    0.22484  -0.408   0.9122  
+# # subordinate - dominant == 0   0.46759    0.21140   2.212   0.0689 .
 
 #Calculate residuals
 saliva.cort.final$residuals <- resid(cortisol)
@@ -348,18 +365,18 @@ saliva.cort.final$residuals <- resid(cortisol)
 ########## 4.4 Plots ##########
 
 #Litter
-myaxis <- saliva.cort.final %>% group_by(litter) %>% 
+myaxis <- saliva.cort.final %>% group_by(litter_status) %>% 
   dplyr::summarize(count = length(unique(saliva_sample_id))) %>% 
-  mutate(myaxis = paste0(litter, "\n", "n=", count))
-dat.litter <- ggeffects::ggpredict(cortisol, type = "fe", terms = c("litter"), full.dat.rsa = FALSE)
-dat.litter <- left_join(dat.litter, myaxis, by = c("x" = "litter"))
+  mutate(myaxis = paste0(litter_status, "\n", "n=", count))
+dat.litter <- ggeffects::ggpredict(cortisol, type = "fe", terms = c("litter_status"), full.dat.rsa = FALSE)
+dat.litter <- left_join(dat.litter, myaxis, by = c("x" = "litter_status"))
 plot.litter <- ggplot(dat.litter, aes(x = myaxis, y = predicted)) +
   geom_point(size = 5) +
   geom_line(data = data.frame(x = c(dat.litter$myaxis, dat.litter$myaxis),
                               predicted = c(dat.litter$predicted, dat.litter$predicted),
                               ci = c(dat.litter$conf.low, dat.litter$conf.high)),
             aes(x = x, y = ci, group= x), size = 1.5)+
-  xlab('Litter') +
+  xlab('Litter status') +
   ylab("Predicted salivary cortisol (log)")+
   scale_x_discrete(limits=c("singleton\nn=84", "subordinate\nn=85", "dominant\nn=87"))+
   theme_classic() +
@@ -452,14 +469,14 @@ plots.all
 dev.off()
 
 #Re-order model terms for plotting
-cortisol <- lmer(data = saliva.cort.final, log_cortisol_ug_dl ~ litter + temp_max_z + 
+cortisol <- lmer(data = saliva.cort.final, log_cortisol_ug_dl ~ litter_status + temp_max_z + 
                    ampm + time_lag_z + cortisol_assay_diff_z + (1 | hyena_id))
 summary(cortisol)
 
 #Table
 tab_model(cortisol, show.se = T, show.ci = F, show.re.var = F, show.intercept = F,
-          pred.labels = c("Litter [dominant]",
-                          "Litter [subordinate]",
+          pred.labels = c("Litter status [dominant]",
+                          "Litter status [subordinate]",
                           "Daily maximum temperature",
                           "Time of day of collection [PM]",
                           "Time to sunrise/set",
@@ -475,8 +492,8 @@ plot.model <- plot_model(cortisol, type = "est", transform = NULL,
                                          "Time to sunrise/set",
                                          "Time of day of collection [PM]",
                                          "Daily maximum temperature",
-                                         "Litter [subordinate]",
-                                         "Litter [dominant]"),
+                                         "Litter status [subordinate]",
+                                         "Litter status [dominant]"),
                          vline.color = "black", title = "", dot.size = 4.5, line.size = 1.5,
                          show.values = TRUE, show.p = TRUE, digits = 2, value.offset = 0.3, 
                          value.size = 6, colors = viridis_2, axis.lim = c(-2,2))
@@ -490,26 +507,23 @@ dev.off()
 #Only with random effect
 rep_c <- rpt(log_cortisol_ug_dl ~ (1 | hyena_id), grname = "hyena_id", data = saliva.cort.final)
 print(rep_c)
-#Repeatability for hyena_id: R = 0.48, SE = 0.077, CI = [0.306, 0.614], P = 1.54e-17
+#Repeatability for hyena_id: R = 0.48, SE = 0.077, CI = [0.319, 0.606], P = 1.54e-17
 
 #Including fixed effects
-rep_c2 <- rpt(log_cortisol_ug_dl ~ ampm + cortisol_assay_diff_z + litter + 
+rep_c2 <- rpt(log_cortisol_ug_dl ~ ampm + cortisol_assay_diff_z + litter_status + 
                 temp_max_z + time_lag_z + (1 | hyena_id),
               grname = "hyena_id", data = saliva.cort.final)
 print(rep_c2)
-#Repeatability for hyena_id: R = 0.361, SE = 0.08, CI = [0.202, 0.512], P = 9.45e-09
+#Repeatability for hyena_id: R = 0.361, SE = 0.08, CI = [0.216, 0.507], P = 9.45e-09
 
 
 ######################################################################
 ##### 5.0 Save final data #####
 ######################################################################
 
-saliva.cortisol <- saliva.cortisol[,c(1:27)]
+saliva.cortisol <- saliva.cortisol[,c(1:29)]
 saliva.cortisol <- left_join(saliva.cortisol, saliva.cort.final[,c("saliva_sample_id", "residuals")])
 
 save(file = "10.saliva_cortisol.Rdata", list = c("saliva.cortisol"))
-
-
-
 
 

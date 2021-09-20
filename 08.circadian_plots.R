@@ -14,10 +14,6 @@ options(stringsAsFactors = F)
 library(patchwork)
 library(tidyverse)
 
-#Set plot colors using viridis
-viridis_2 <- viridis(7)[-c(1,3,5,6,7)]
-viridis_3 <- viridis(7)[-c(2,4,6,7)]
-
 #Load data
 load("07.saliva_behavior.Rdata")
 

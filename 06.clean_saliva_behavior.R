@@ -68,8 +68,7 @@ for(i in 1:nrow(tblHyenas)){
     tblHyenas$clan[i] <- filter(tblLifeHistory, id == id.i & event_code == "DOB")$event_data
   }
 }
-rm(i)
-rm(id.i)
+rm(i, id.i)
 tblHyenas$clan <- as.factor(tblHyenas$clan)
 
 
@@ -357,6 +356,7 @@ play.scans$behav <- "play"
 rm(hyenas.new)
 rm(play.list)
 rm(play.scans.sep)
+rm(session.current)
 rm(clan.current)
 rm(date.current)
 rm(hyenas.current)
@@ -506,7 +506,9 @@ for(i in 1:nrow(saliva.cortisol)){
     saliva.cortisol$feeding[i] <- "feed"
   }
 }
+rm(clan.i, date.i, time.i, id.i, feed.i, i)
 summary(as.factor(saliva.cortisol$feeding))
+
 
 #Filter out anyone who fed or chewed on something in the last 10 minutes - only 6 samples
 saliva.cortisol <- filter(saliva.cortisol, feeding != "feed")

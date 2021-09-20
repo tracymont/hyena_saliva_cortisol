@@ -73,7 +73,33 @@ cor.test(comparison$log_conc_saliva, comparison$log_conc_plasma)
 # 0.7698441 
 
 
-########## 1.3 ACTH (biological) validation plot ##########
+########## 1.3 Look at time differences between plasma and saliva ##########
+
+#Find max plasma point
+filter(acth, type == "plasma") %>% arrange(hyena_id, conc)
+# hyena sample_id min_inj    conc    cv sample    log_conc      conc_z
+#  brgr     11736      49 47.8700  1.92 plasma  3.86848900  1.73952714
+#  gaza     11744      54 38.2700  0.81 plasma  3.64466630  1.12312785
+#  mchl     11747      56 23.4600  4.34 plasma  3.15529684  0.17220354
+plyr::round_any(mean(c(49, 54, 56)), 5)     #55 min is average plasma peak
+
+#Find max saliva point
+filter(acth, type == "saliva") %>% arrange(hyena_id, conc)
+# hyena sample_id min_inj    conc    cv sample    log_conc      conc_z
+# brgr        R9      69  5.4850 11.73 saliva  1.70201709   2.3980249
+# gaza       G12      80  3.8670  8.10 saliva  1.35247901   1.4157676
+# mchl        M9      96  2.6090  4.74 saliva  0.95896701   0.6520594
+plyr::round_any(mean(c(69, 80, 96)), 5)     #80 min is average saliva peak 
+
+#Find last saliva point - same as max point
+filter(acth, type == "saliva") %>% arrange(hyena_id, min_inj)
+# brgr        R9      69  5.4850 11.73 saliva  1.70201709   2.3980249
+# gaza       G12      80  3.8670  8.10 saliva  1.35247901   1.4157676
+# mchl        M9      96  2.6090  4.74 saliva  0.95896701   0.6520594
+plyr::round_any(mean(c(69, 80, 96)), 5)     #80 min is also the last time point - could be peak but don't know
+
+
+########## 1.4 ACTH (biological) validation plot ##########
 
 #Average samples prior to ACTH injection to create a single "baseline" point
 means <- filter(acth, min_inj <= 0)
@@ -93,29 +119,6 @@ acth <- rbind(acth, means)
 acth$conc_z <- NA
 acth[acth$type == "saliva",]$conc_z <- scale(acth[acth$type == "saliva",]$conc, center = T, scale = T)
 acth[acth$type == "plasma",]$conc_z <- scale(acth[acth$type == "plasma",]$conc, center = T, scale = T)
-
-#Find max plasma point
-filter(acth, type == "plasma") %>% arrange(hyena_id, conc)
-# hyena sample_id min_inj    conc    cv sample    log_conc      conc_z
-#  brgr     11736      49 47.8700  1.92 plasma  3.86848900  1.73952714
-#  gaza     11744      54 38.2700  0.81 plasma  3.64466630  1.12312785
-#  mchl     11747      56 23.4600  4.34 plasma  3.15529684  0.17220354
-mean(c(49, 54, 56))     #53 min is average plasma peak
-
-filter(acth, type == "saliva") %>% arrange(hyena_id, conc)
-# hyena sample_id min_inj    conc    cv sample    log_conc      conc_z
- # brgr        R9      69  5.4850 11.73 saliva  1.70201709   2.3980249
- # gaza       G12      80  3.8670  8.10 saliva  1.35247901   1.4157676
- # mchl        M9      96  2.6090  4.74 saliva  0.95896701   0.6520594
-#latest time point
-mean(c(69, 80, 96))     #82 min is average last time - could be peak but don't know
-# hyena sample_id min_inj    conc    cv sample    log_conc      conc_z
-#  brgr        R8      59 5.1260  4.28 saliva  1.63432563  2.1800828
-#  gaza       G11      70 3.6010  9.27 saliva  1.28121158  1.2542840
-#  mchl        M8      81 1.2770  5.26 saliva  0.24451358 -0.1565727
-#second-to-last time point
-mean(c(59, 70, 81))     #70 min is average second-to-last time - don't see saliva peak yet
-#Conclusion: saliva peak is at least 70-53 min = 17 minutes ~ 20 minutes after blood peak
 
 #Make ACTH plot
 colnames(acth)[1] <- "hyena"
@@ -154,7 +157,28 @@ plot.acth
 dev.off()
 
 
-########## 1.4 ACTH plot depicting behavioral sampling window ##########
+########## 1.5 ACTH plot depicting lag-time in salivary cortisol ##########
+
+#Plot for lag-time
+plot.acth <- ggplot(data = acth, aes(y = conc_z, x = min_inj, col = hyena, linetype = sample)) + 
+  geom_vline(xintercept = 0, color = "dark grey") + 
+  geom_vline(xintercept = 20, color = "dark grey", lty = 2) + 
+  geom_point(size = 2) + 
+  geom_line(size = 1) + 
+  scale_color_manual(values = viridis_3) +
+  xlab('Time since ACTH injection (min)') + 
+  ylab('Cortisol (standardized)')+
+  theme_classic() +
+  theme(legend.title = element_text(size = 14), legend.text = element_text(size = 12),
+        axis.title = element_text(size = 20), axis.text = element_text(size = 16), 
+        legend.position = "none") + 
+  scale_x_continuous(breaks = seq(-40, 120, 20))
+pdf('03.plot.acth.increase.pdf', width = 7, height = 5)
+plot.acth
+dev.off()
+
+
+########## 1.6 ACTH plot depicting behavioral sampling window ##########
 
 #Plot for behavioral sampling window
 plot.acth <- ggplot(data = filter(acth, sample == "saliva"), aes(y = conc_z, x = min_inj, col = hyena)) + 
@@ -173,5 +197,7 @@ plot.acth <- ggplot(data = filter(acth, sample == "saliva"), aes(y = conc_z, x =
 pdf('03.plot.acth.zoom.pdf', width = 5, height = 5)
 plot.acth
 dev.off()
+
+
 
 

@@ -91,12 +91,16 @@ summary(as.factor(saliva.cortisol.behav$behav.cat))
 # Model: log_cortisol_ug_dl ~ ampm + cortisol_assay_diff_z + litter + temp_max_z + time_lag_z + (1 | hyena_id)
 
 behavior.dat <- filter(saliva.cortisol.behav, !is.na(behav.cat) & !is.na(residuals))
+
+nrow(behavior.dat)     #87
+num.ids <- behavior.dat %>% group_by(hyena_id)
+length(unique(num.ids$hyena_id))    #40
+
 behavior.dat$behav.cat <- as.factor(behavior.dat$behav.cat)
 behavior.dat$behav.cat <- relevel(behavior.dat$behav.cat, ref = "1active")
 mod.cort <- lm(data = behavior.dat, residuals ~ behav.cat)
 summary(mod.cort)
 #                      Estimate Std. Error t value Pr(>|t|)  
-# (Intercept)         -0.10771    0.09524  -1.131   0.2613  
 # behav.cat2aggressor -0.45230    0.21822  -2.073   0.0413 *
 # behav.cat3recipient  0.21711    0.19977   1.087   0.2803  
 # behav.cat4play       0.22681    0.24590   0.922   0.3590  
@@ -127,7 +131,7 @@ boxplot.behav <- ggplot(behavior.dat, aes(x = behav.cat, y = residuals)) +
         axis.title = element_text(size = 20), axis.text = element_text(size = 16)) + 
   scale_x_discrete(limits = c("1active", "2aggressor", "3recipient", "4play"),
                    labels = c("other\nn=51", "aggressor\nn=12", "recipient\nn=15", "play\nn=9")) +
-  ylim(c(-2,2))
+  ylim(c(-2.4,2.4))
 pdf('11.plot.cort.behav.pdf', width = 7, height = 5)
 boxplot.behav
 dev.off()
@@ -136,7 +140,7 @@ dev.off()
 tab_model(mod.cort, show.se = T, show.ci = F, show.intercept = F, show.reflvl = TRUE,
           pred.labels = c("Aggressor", "Recipient", "Play"),
           dv.labels = c("Cortisol model residuals"),
-          string.se = "SE")#, file = "11.table.cort.behav.doc")
+          string.se = "SE", file = "11.table.cort.behav.doc")
 
 #Model plot
 set_theme(base = theme_classic(), axis.textcolor = "black", axis.title.color = "black", 

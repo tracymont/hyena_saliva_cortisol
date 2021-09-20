@@ -24,21 +24,49 @@ saliva.final <- filter(saliva.final, clan != "talek.w")
 saliva.freezethaw <- read.csv("00.raw_data/saliva_sample_freezethaw.csv")
 saliva.freezethaw <- unique(saliva.freezethaw[,c(2:3)])
 saliva.freezethaw$assay_date <- as.Date(saliva.freezethaw$assay_date, format = "%d-%b-%y")
-saliva.freezethaw <- saliva.freezethaw %>% group_by(sample_id) %>% 
-  mutate(freeze_thaw = as.numeric(min_rank(assay_date) + 1))  
-#add 1 due to transfer from cryotubes to microcentrifuge tubes [removal of Kimbo]
 
+#Everyone thawed on first day to transfer samples from cryotubes to microcentrifuge tubes [removal of Kimbo]
+saliva.transfer <- data.frame(sample_id = unique(saliva.freezethaw$sample_id), 
+                              assay_date = min(saliva.freezethaw$assay_date))
+saliva.freezethaw <- rbind(saliva.freezethaw, saliva.transfer)
+saliva.freezethaw <- unique(saliva.freezethaw)
+
+#Create dataset
+saliva.freezethaw <- saliva.freezethaw %>% group_by(sample_id) %>% 
+  mutate(freeze_thaw = as.numeric(min_rank(assay_date))) 
+rm(saliva.transfer)
 
 ########## 1.2 hyenadata tables ##########
 
+#Add weaning dates to tblLifeHistory
+data("tblLifeHistory")
+weaning <- read.csv("00.raw_data/weaning_update_Sept21.csv", na = "")
+weaning$done <- NA   #keep track of if-function
+for(i in 1:nrow(weaning)){
+  id.i <- weaning$id[i]
+  date.i <- weaning$WeanDate[i]
+  error.i <- weaning$Error.days[i]
+  event_status.i <- weaning$status[i]
+  if(nrow(tblLifeHistory[tblLifeHistory$id == id.i & tblLifeHistory$event_code == "Weaned",]) == 1){
+    tblLifeHistory[tblLifeHistory$id == id.i & tblLifeHistory$event_code == "Weaned",]$date <- date.i
+    tblLifeHistory[tblLifeHistory$id == id.i & tblLifeHistory$event_code == "Weaned",]$error <- error.i
+    tblLifeHistory[tblLifeHistory$id == id.i & tblLifeHistory$event_code == "Weaned",]$event_status <- event_status.i
+    weaning$done[i] <- TRUE
+  }
+}
+summary(weaning$done)
+rm(id.i, date.i, error.i, event_status.i, i)
+rm(weaning)
+
 #tblLifeHistory
-data(tblLifeHistory)
 tblLifeHistory$id <- gsub(" ", "", tblLifeHistory$id)
+tblLifeHistory[tblLifeHistory$event_code == "disappeared",]$event_code <- "Disappeared"
 tblLifeHistory$event_code <- as.factor(tblLifeHistory$event_code)
 tblLifeHistory$error <- as.numeric(tblLifeHistory$error)    
 tblLifeHistory$event_status <- as.factor(tblLifeHistory$event_status)
 tblLifeHistory <- tblLifeHistory[,1:7]
 tblLifeHistory <- filter(tblLifeHistory, !is.na(id) & !is.na(event_code))   #remove 0
+tblLifeHistory <- unique(tblLifeHistory)
 
 #tblHyenas
 data("tblHyenas")
@@ -48,18 +76,18 @@ tblHyenas$status <- as.factor(tblHyenas$status)
 tblHyenas$mom <- gsub(" ", "", tblHyenas$mom)
 tblHyenas$dad <- gsub(" ", "", tblHyenas$dad)
 tblHyenas$number_littermates <- as.numeric(tblHyenas$number_littermates)
-tblHyenas$litrank <- as.numeric(tblHyenas$litrank)
-tblHyenas <- tblHyenas[,c(1,4,7:13,15)]
+tblHyenas$litter_rank <- as.numeric(tblHyenas$litrank)
+tblHyenas <- tblHyenas[,c(1,4,7:12,17,15)]
 tblHyenas <- filter(tblHyenas, !is.na(id))   #remove 0
 
-#Adding litter variable
-tblHyenas$litter <- NA
+#Adding litter_status variable
+tblHyenas$litter_status <- NA
 tblHyenas[tblHyenas$number_littermates != '0' & !is.na(tblHyenas$number_littermates) & 
-            !is.na(tblHyenas$litrank) & tblHyenas$litrank == '1',]$litter <- 'dominant'
+            !is.na(tblHyenas$litter_rank) & tblHyenas$litter_rank == '1',]$litter_status <- 'dominant'
 tblHyenas[tblHyenas$number_littermates != '0' & !is.na(tblHyenas$number_littermates) & 
-            !is.na(tblHyenas$litrank) & tblHyenas$litrank == '2',]$litter <- 'subordinate'
-tblHyenas[is.na(tblHyenas$number_littermates) | tblHyenas$number_littermates == '0',]$litter <- 'singleton'
-tblHyenas$litter <- as.factor(tblHyenas$litter)
+            !is.na(tblHyenas$litter_rank) & tblHyenas$litter_rank == '2',]$litter_status <- 'subordinate'
+tblHyenas[is.na(tblHyenas$number_littermates) | tblHyenas$number_littermates == '0',]$litter_status <- 'singleton'
+tblHyenas$litter_status <- as.factor(tblHyenas$litter_status)
 
 #Adding clan variable - because all natal animals, use natal clan
 tblHyenas$clan <- NA
@@ -69,7 +97,7 @@ for(i in 1:nrow(tblHyenas)){
     tblHyenas$clan[i] <- filter(tblLifeHistory, id == id.i & event_code == "DOB")$event_data
   }
 }
-rm(i)
+rm(i, id.i)
 tblHyenas$clan <- as.factor(tblHyenas$clan)
 
 #tblRanks
@@ -134,11 +162,11 @@ saliva.horm <- left_join(saliva.horm, tblPreyDensity[,c(2:4,8)], by = c("clan", 
 saliva.horm <- left_join(saliva.horm, tblHyenas[,c(1,4)], by = c("hyena_id" = "id"))
 saliva.horm$age <- (as.numeric(saliva.horm$date - saliva.horm$birthdate)/365)*12    #age in months
 
-#Add sex, litter
+#Add sex, litter_status
 saliva.horm <- left_join(saliva.horm, tblHyenas[,c(1,3,6,8,9,11)], by = c("hyena_id" = "id"))
 
 #Add maternal rank
-saliva.horm$rank <- NA
+saliva.horm$mat_rank <- NA
 for(i in 1:nrow(saliva.horm)){
   mom.i <- saliva.horm$mom[i]
   year.i <- as.numeric(format(saliva.horm$date[i], "%Y"))
@@ -146,20 +174,21 @@ for(i in 1:nrow(saliva.horm)){
     rank.i <- filter(tblFemaleRanks, id == mom.i & year == year.i)$stan_rank
     #Add mom's rank from current year
     if(length(rank.i) == 1){
-      saliva.horm$rank[i] <- rank.i
+      saliva.horm$mat_rank[i] <- rank.i
     }
     #Add mom's rank from previous year if current year rank is not available
     if(length(rank.i) == 0){
       rank.i <- filter(tblFemaleRanks, id == mom.i & year == (year.i-1))$stan_rank
       if(length(rank.i) == 1){
-        saliva.horm$rank[i] <- rank.i
+        saliva.horm$mat_rank[i] <- rank.i
       }
       if(length(rank.i) == 0){
-        saliva.horm$rank[i] <- NA
+        saliva.horm$mat_rank[i] <- NA
       }
     }
   }
 }
+rm(mom.i, year.i, rank.i, i)
 
 #Reformat clan
 saliva.horm$clan <- as.factor(as.character(saliva.horm$clan))
@@ -169,9 +198,43 @@ saliva.horm$sex <- as.character(saliva.horm$sex)
 saliva.horm[saliva.horm$sex == "u" & !is.na(saliva.horm$sex),]$sex <- NA    #if unknown sex - 3 samples
 saliva.horm$sex <- as.factor(saliva.horm$sex)
 
-#Fix litter
-saliva.horm$litter <- relevel(saliva.horm$litter, ref = "singleton")
-saliva.horm[saliva.horm$number_littermates == 0,]$litrank <- 0   #if singleton
+#Fix litter_status
+saliva.horm$litter_status <- relevel(saliva.horm$litter_status, ref = "singleton")
+saliva.horm[saliva.horm$number_littermates == 0,]$litter_rank <- 0   #if singleton
+
+#Add litter_id
+saliva.horm$litter_id <- NA
+for(i in 1:nrow(saliva.horm)){
+  if(is.na(saliva.horm$litter_id[i])){
+    mom.i <- saliva.horm$mom[i]
+    bd.i <- saliva.horm$birthdate[i]
+    littermates.i <- sort(unique(filter(saliva.horm, mom == mom.i & birthdate == bd.i)$hyena_id))
+    if(length(littermates.i) > 1){
+      saliva.horm$litter_id[i] <- paste0(littermates.i, collapse = "-")
+    }
+  }
+}
+rm(mom.i, bd.i, littermates.i, i)
+
+#Add weaning date
+saliva.horm$wean_date <- NA
+for(i in 1:nrow(saliva.horm)){
+  id.i <- saliva.horm$hyena_id[i]
+  saliva.horm$wean_date[i] <- as.character(filter(tblLifeHistory, event_code == "Weaned" & id == id.i)$date)
+  if(is.na(saliva.horm$wean_date[i])){
+    if(nrow(filter(tblLifeHistory, event_code == "Weaned" & id == id.i & event_status == "dbw")) == 1){
+      saliva.horm$wean_date[i] <- as.character(filter(tblLifeHistory, event_code == "Disappeared" & id == id.i)$date)
+    }
+  }
+  if(is.na(saliva.horm$wean_date[i])){
+    if(nrow(filter(tblLifeHistory, event_code == "Weaned" & id == id.i & event_status == "sugu")) == 1){
+      saliva.horm$wean_date[i] <- as.character(filter(tblLifeHistory, event_code == "DFS" & id == id.i)$date)
+    }
+  }
+}
+rm(id.i, i)
+saliva.horm$wean_date <- as.Date(saliva.horm$wean_date)
+saliva.horm$weaning_status <- ifelse(saliva.horm$date > saliva.horm$wean_date, "weaned", "nursing")
 
 #Add AM/PM column for time
 saliva.horm$ampm <- format(saliva.horm$start_time, '%p')
@@ -228,7 +291,8 @@ saliva.cortisol <- saliva.horm[,c("saliva_sample_id", "repeated", "clan", "hyena
                                   "chew_time", "ln2_time", "ln2_diff", "cortisol_ug_dl", 
                                   "cortisol_assay_date", "cortisol_assay_diff", "temp_min", 
                                   "temp_max", "precip", "prey_density", "age", "sex", 
-                                  "rank", "number_littermates", "litrank", "litter")]
+                                  "mat_rank", "number_littermates", "litter_rank", 
+                                  "litter_status", "litter_id", "weaning_status")]
 saliva.cortisol <- filter(saliva.cortisol, !is.na(cortisol_ug_dl))
 
 #Log-transform to achieve normality
@@ -256,7 +320,7 @@ summary(saliva.cortisol)
 #Filter to only juveniles
 saliva.cortisol <- filter(saliva.cortisol, age < 24)     #remove 1
 
-
+  
 ######################################################################
 ##### 3.0 Save data #####
 ######################################################################
